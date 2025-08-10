@@ -31,16 +31,14 @@ export interface AppState {
   getComputed: () => ReturnType<typeof computeShares>;
 }
 
-// SSR/CSRで同一になるよう固定IDを採用
+// デフォルトは1行のみ（名前・役職・年齢は未入力）
 const initialParticipants: ParticipantInput[] = [
-  { id: "p1", name: "田中さん", role: "junior", age: 25 },
-  { id: "p2", name: "佐藤さん", role: "mid", age: 34 },
-  { id: "p3", name: "鈴木さん", role: "manager", age: 45 },
+  { id: "p1", name: "", role: undefined, age: undefined },
 ];
 
 export const useAppStore = create<AppState>((set, get) => ({
   participants: initialParticipants,
-  total: 12000,
+  total: 0,
   granularity: 100,
   mode: "nearest",
 
@@ -52,7 +50,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => ({
       participants: [
         ...s.participants,
-        { id: generateId(), name: "", role: "mid", age: 30 },
+        { id: generateId(), name: "", role: undefined, age: undefined },
       ],
     })),
 

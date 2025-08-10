@@ -33,10 +33,10 @@ export default function Page() {
     getComputed,
   } = useAppStore();
 
-  // 合計金額入力: 手入力時に一時的な空文字を許可
-  const [totalInput, setTotalInput] = useState<string>(String(total));
+  // 合計金額入力: 初期は空表示にし、0のままなら空を維持
+  const [totalInput, setTotalInput] = useState<string>("");
   useEffect(() => {
-    setTotalInput(String(total));
+    if (total !== 0) setTotalInput(String(total));
   }, [total]);
 
   const computed = getComputed();
@@ -62,7 +62,7 @@ export default function Page() {
             type="text"
             inputMode="numeric"
             value={totalInput}
-            placeholder="0"
+            placeholder=""
             onChange={(e) => {
               const v = e.target.value.replace(/[^0-9]/g, "");
               setTotalInput(v);
@@ -72,7 +72,7 @@ export default function Page() {
               }
             }}
             onBlur={() => {
-              if (totalInput === "") setTotalInput(String(total));
+              if (totalInput === "") setTotal(0);
             }}
           />
         </div>
@@ -84,13 +84,12 @@ export default function Page() {
           <Button onClick={addParticipant}>行を追加</Button>
         </div>
 
-        <div className="hidden md:grid grid-cols-[120px_1fr_120px_84px_1fr_90px_44px] gap-2 items-center text-xs">
+        <div className="hidden md:grid grid-cols-[120px_1fr_100px_72px_1fr_44px] gap-2 items-center text-xs">
           <div className="text-muted-foreground">金額</div>
           <div className="text-muted-foreground">名前</div>
           <div className="text-muted-foreground">役職</div>
           <div className="text-muted-foreground">年齢</div>
           <div className="text-muted-foreground">ウェイト</div>
-          <div className="text-muted-foreground">コピー</div>
           <div className="text-muted-foreground text-right pr-2">操作</div>
         </div>
 
@@ -182,10 +181,10 @@ function FooterControls({
               }))
               .sort((a, b) => a.overshoot - b.overshoot)[0];
             onApply(gNum, best.m);
-            toast(`キリのいい数字に自動調整（単位:${g} / ${best.m}）`);
+            toast(`計算しました（単位:${g} / ${best.m}）`);
           }}
         >
-          キリのいい数字にする
+          計算する
         </Button>
       </div>
     </footer>
@@ -199,14 +198,7 @@ function Row({
   onChange,
   onRemove,
 }: {
-  data: {
-    id: string;
-    name: string;
-    role: keyof typeof ROLE_WEIGHT;
-    age: number;
-    treat?: boolean;
-    customWeight?: number;
-  };
+  data: ParticipantInput;
   weight: number;
   amount: number;
   onChange: (u: Partial<Omit<ParticipantInput, "id">>) => void;
@@ -226,7 +218,7 @@ function Row({
 
   return (
     <div
-      className={`grid grid-rows-[auto_auto_auto_auto] md:grid-cols-[120px_1fr_120px_84px_1fr_90px_44px] gap-2 items-center rounded-lg p-3 transition-colors border ${
+      className={`grid grid-rows-[auto_auto_auto_auto] md:grid-cols-[120px_1fr_100px_72px_1fr_44px] gap-2 items-center rounded-lg p-3 transition-colors border ${
         active ? "bg-secondary/40" : "bg-card"
       } shadow-sm`}
     >
@@ -241,64 +233,60 @@ function Row({
         onChange={(e) => onChange({ name: e.target.value })}
       />
 
-      <Select
-        value={data.role}
-        onValueChange={(v: keyof typeof ROLE_WEIGHT) => onChange({ role: v })}
-      >
-        <SelectTrigger className="md:col-start-3">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {roleOptions.map((r) => (
-            <SelectItem key={r.value} value={r.value}>
-              {r.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex w-full gap-2 md:contents">
+        <Select
+          value={data.role}
+          onValueChange={(v: keyof typeof ROLE_WEIGHT) => onChange({ role: v })}
+        >
+          <SelectTrigger className="md:col-start-3 md:w-[100px] w-full">
+            <SelectValue placeholder="役職" />
+          </SelectTrigger>
+          <SelectContent>
+            {roleOptions.map((r) => (
+              <SelectItem key={r.value} value={r.value}>
+                {r.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-      <Input
-        className="md:col-start-4"
-        type="number"
-        inputMode="numeric"
-        value={data.age}
-        onChange={(e) => onChange({ age: Number(e.target.value || 0) })}
-      />
-
-      <div className="space-y-1 md:order-none row-start-3 md:col-start-5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground gap-3">
-          <div>
-            役職基準 {baseWeight(data.role, data.age).toFixed(2)} / 年齢補正 {ageAdjustment(data.age) >= 0 ? "+" : ""}
-            {ageAdjustment(data.age).toFixed(1)}
-          </div>
-          <div className="flex items-center gap-3">
-            <div>現在: {displayWeight.toFixed(2)}</div>
-            <div className="flex items-center gap-1">
-              <Switch
-                checked={Boolean(data.treat)}
-                onCheckedChange={(v) => onChange({ treat: v })}
-                aria-label="おごり（この人は0円）"
-              />
-              <span>おごり</span>
-            </div>
-          </div>
-        </div>
-        <Slider
-          value={[Number(data.customWeight ?? displayWeight)]}
-          min={0.1}
-          max={2}
-          step={0.1}
-          onValueChange={(v) => {
-            setActive(true);
-            onChange({ customWeight: v[0] });
-          }}
-          onValueCommit={() => setActive(false)}
+        <Input
+          className="md:col-start-4 md:w-[72px] w-24"
+          type="number"
+          inputMode="numeric"
+          value={typeof data.age === "number" ? data.age : ""}
+          placeholder="年齢"
+          onChange={(e) => onChange({ age: e.target.value === "" ? undefined : Number(e.target.value) })}
         />
       </div>
 
-      <div className="flex items-center justify-between md:justify-start gap-3 row-start-4 md:col-start-6">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>コピー</span>
+      <div className="row-start-3 md:row-auto md:col-start-5">
+        <div className="text-xs text-muted-foreground md:hidden mb-1">
+          役職基準 {baseWeight(data.role, data.age).toFixed(2)} / 年齢補正 {ageAdjustment(data.age) >= 0 ? "+" : ""}
+          {ageAdjustment(data.age).toFixed(1)} / 現在 {displayWeight.toFixed(2)}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="hidden md:block text-xs text-muted-foreground">現在: {displayWeight.toFixed(2)}</div>
+          <Slider
+            className="flex-1 md:max-w-[220px]"
+            value={[Number(data.customWeight ?? displayWeight)]}
+            min={0.1}
+            max={2}
+            step={0.1}
+            onValueChange={(v) => {
+              setActive(true);
+              onChange({ customWeight: v[0] });
+            }}
+            onValueCommit={() => setActive(false)}
+          />
+          <div className="flex items-center gap-1">
+            <Switch
+              checked={Boolean(data.treat)}
+              onCheckedChange={(v) => onChange({ treat: v })}
+              aria-label="おごり（この人は0円）"
+            />
+            <span className="hidden md:inline">おごり</span>
+          </div>
           <Button
             variant="outline"
             size="icon"
@@ -313,7 +301,9 @@ function Row({
         </div>
       </div>
 
-      <div className="flex items-center justify-end md:col-start-7">
+      {/* コピー操作は上のウェイト行へ移動し、ここは削除 */}
+
+      <div className="flex items-center justify-end md:col-start-6">
         <Button variant="ghost" size="icon" aria-label="行を削除" onClick={onRemove}>
           ×
         </Button>

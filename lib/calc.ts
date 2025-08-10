@@ -12,8 +12,8 @@ export type Granularity = 1 | 10 | 50 | 100;
 export interface ParticipantInput {
   id: string;
   name: string;
-  role: Role;
-  age: number;
+  role?: Role;
+  age?: number;
   treat?: boolean;
   customWeight?: number; // 0.1 - 2.0 preferred
 }
@@ -27,7 +27,8 @@ export const ROLE_WEIGHT: Record<Role, number> = {
   exec: 1.6,
 };
 
-export function ageAdjustment(age: number): number {
+export function ageAdjustment(age?: number): number {
+  if (typeof age !== "number") return 0;
   if (age <= 24) return -0.1;
   if (age <= 29) return 0;
   if (age <= 39) return 0.1;
@@ -35,8 +36,9 @@ export function ageAdjustment(age: number): number {
   return 0.3;
 }
 
-export function baseWeight(role: Role, age: number): number {
-  const roleWeight = ROLE_WEIGHT[role] ?? 1.0;
+export function baseWeight(role?: Role, age?: number): number {
+  const effectiveRole: Role = role ?? "mid";
+  const roleWeight = ROLE_WEIGHT[effectiveRole] ?? 1.0;
   const adjusted = roleWeight * (1 + ageAdjustment(age));
   return Math.max(0.1, Number(adjusted.toFixed(3)));
 }
